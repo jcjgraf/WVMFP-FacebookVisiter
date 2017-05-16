@@ -1,4 +1,6 @@
 #!/usr/bin/python
+
+# -*- coding: utf-8 -*-
  
 #############
 # LIBRARIES #
@@ -6,6 +8,8 @@
 
 import mechanize    # Login to facebook
 from lxml import html   # Analyse the source code with xpath
+import sys
+import getpass
 
 
 ##################
@@ -46,28 +50,26 @@ def setupBrowser():
     br.set_handle_referer(True)
     br.set_handle_robots(False)
     br.set_handle_refresh(mechanize._http.HTTPRefreshProcessor(), max_time=1)
-    br.addheaders = [('User-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/603.1.30 (KHTML, like Gecko) Version/10.1 Safari/603.1.30')]
+    br.addheaders = [('User-agent', 'Mozilla/5.0 (X11; Linux i586; rv:31.0) Gecko/20100101 Firefox/31.0')]
     return br
 
-def login(username,password):
+def login(emailAddress,password):
     """
         Login to facebook with the email and password given in the argument
     """
+
     print("[-] LOGIN")
-    print("[+] username : " + username)
-    print("[+] password : " + password)
+    print("[+] emailAddress : " + emailAddress)
+    print("[+] password : " + "[Password hidden]")
     
     br = setupBrowser()
 
     br.open('https://facebook.com/')
     br.select_form(nr=0)
-    br.form['email'] = username
+    br.form['email'] = emailAddress
     br.form['pass'] = password
     br.submit()
 
-    # TODO: Catch and try
-
-    print("[-] SUCCESS LOGIN")
     return br
 
 def logout(br):
@@ -84,11 +86,12 @@ def getUserID(scrapedCode):
     """
         Scrapes source code and gets the userID from it
     """
-    print("[+] Getting the user ID")
+    
     tree = html.fromstring(scrapedCode)
 
     idValue = tree.xpath('//img[1]/@id')[1] #Weirdly it returns a list with two elements, the second one is the right ID value
-
+    print("[-] SUCCESS LOGIN")
+    print("[-] GOT USERID")
     User.userID = idValue[19:] # Strip the beginning and get the userID
 
 def getVisiterID(scrapedCode):
@@ -96,7 +99,7 @@ def getVisiterID(scrapedCode):
         Here we get all script tag sections from the source code, analyse them and select the right one, strip all unnescessary stuff, converte the js object to a json  and save it to a file
     """
 
-    print("[+] Getting the visiter IDs")
+    print("[-] Getting the visiter data")
     tree = html.fromstring(scrapedCode)
 
     scriptTags = tree.xpath('//script')
@@ -152,12 +155,16 @@ def writeToTestfile(textToSave):
 #################
 
 if __name__ == '__main__':
-
-    br = login(User.email, User.passwd)
-
-    # Scrape the main page in order to get userID
-    response = br.open('https://facebook.com/')
-    getUserID(str(response.read()))
+    try:
+        br = login(User.email, User.passwd)
+        # Scrape the main page in order to get the userID
+        response = br.open('https://facebook.com/')
+        # writeToTestfile(str(response.read()))
+        getUserID(str(response.read()))
+    except Exception as e:
+        print("[+] Your email address or password seems to be wrong. Please try again!")
+        print("[+] Quit")
+        sys.exit()
 
     # Scrape the profile page in order to get the js object containing the data about the visiters
     response = br.open('https://facebook.com/' + User.userID)
