@@ -9,7 +9,6 @@
 import mechanize    # Login to facebook
 from lxml import html   # Analyse the source code with xpath
 import sys
-import getpass
 
 
 ##################
@@ -82,6 +81,8 @@ def logout(br):
     for link in br.links(url_regex="logout.php"):
         br.open('https://m.facebook.com' + link.url)
 
+    print("[-] QUIT")
+
 def getUserID(scrapedCode):
     """
         Scrapes source code and gets the userID from it
@@ -89,17 +90,23 @@ def getUserID(scrapedCode):
     
     tree = html.fromstring(scrapedCode)
 
-    idValue = tree.xpath('//img[1]/@id')[1] #Weirdly it returns a list with two elements, the second one is the right ID value
-    print("[-] SUCCESS LOGIN")
-    print("[-] GOT USERID")
+    # Depending on the language fb might return a list with several elements, so we have to iterate through them and look for the right one
+    for i in tree.xpath('//img[1]/@id'):
+        print(i[:19])
+        if i[:19] == "profile_pic_header_":
+            idValue = i
+            break
+
+    print("[+] SUCCESS LOGIN")
+    print("[-] GETTING USERID")
     User.userID = idValue[19:] # Strip the beginning and get the userID
+    print("[+] GOT USERID")
 
 def getVisiterID(scrapedCode):
     """
         Here we get all script tag sections from the source code, analyse them and select the right one, strip all unnescessary stuff, converte the js object to a json  and save it to a file
     """
-
-    print("[-] Getting the visiter data")
+    print("[-] GETTING DATA ABOUT THE USERS")
     tree = html.fromstring(scrapedCode)
 
     scriptTags = tree.xpath('//script')
@@ -108,7 +115,6 @@ def getVisiterID(scrapedCode):
     # Iterate over all script tag section and look for the one containing the right keyword
     for s in scriptTags:
         if "InitialChatFriendsList" in html.tostring(s):
-            print("Found")
             scriptTag = html.tostring(s)
             break
 
@@ -116,7 +122,8 @@ def getVisiterID(scrapedCode):
 
     with open('visiters.json', 'w') as visiters:
         visiters.write(jsObjectToJson(visitersObject))
-        # visiters.write(visitersObject)
+
+    print("[+] GOT DATA ABOUT HE VISITERS")
 
 def jsObjectToJson(objectString):
     """
@@ -155,6 +162,9 @@ def writeToTestfile(textToSave):
 #################
 
 if __name__ == '__main__':
+    """
+        Main Function
+    """
     try:
         br = login(User.email, User.passwd)
         # Scrape the main page in order to get the userID
